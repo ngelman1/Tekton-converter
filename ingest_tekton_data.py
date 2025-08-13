@@ -56,16 +56,41 @@ def ingest_documents_into_rag(client: LlamaStackClient, documents: List[Dict], v
         # Insert documents
         for doc in documents:
             try:
-                client.tool_runtime.rag_tool.insert(
-                    documents=[{
-                        "document_id": doc["id"],
-                        "content": doc["text"],
-                        "metadata": doc["metadata"]
-                    }],
-                    vector_db_id=vector_db_id,
-                    chunk_size_in_tokens=256,
-                )
-                cprint(f"Ingested document: {doc['metadata']['source']}", "green")
+                # Split large content into smaller chunks if needed
+                content = doc["text"]
+                max_chunk_size = 10000  # characters per chunk
+                
+                if len(content) > max_chunk_size:
+                    cprint(f"Splitting large document: {doc['metadata']['source']} ({len(content)} chars)", "yellow")
+                    chunks = [content[i:i+max_chunk_size] for i in range(0, len(content), max_chunk_size)]
+                    
+                    for i, chunk in enumerate(chunks):
+                        chunk_id = f"{doc['id']}_chunk_{i}"
+                        chunk_metadata = doc["metadata"].copy()
+                        chunk_metadata["chunk_index"] = i
+                        chunk_metadata["total_chunks"] = len(chunks)
+                        
+                        client.tool_runtime.rag_tool.insert(
+                            documents=[{
+                                "document_id": chunk_id,
+                                "content": chunk,
+                                "metadata": chunk_metadata
+                            }],
+                            vector_db_id=vector_db_id,
+                            chunk_size_in_tokens=512,
+                        )
+                    cprint(f"Ingested {len(chunks)} chunks for: {doc['metadata']['source']}", "green")
+                else:
+                    client.tool_runtime.rag_tool.insert(
+                        documents=[{
+                            "document_id": doc["id"],
+                            "content": content,
+                            "metadata": doc["metadata"]
+                        }],
+                        vector_db_id=vector_db_id,
+                        chunk_size_in_tokens=512,
+                    )
+                    cprint(f"Ingested document: {doc['metadata']['source']}", "green")
             except Exception as e:
                 cprint(f"Error ingesting document {doc['metadata']['source']}: {e}", "red")
 

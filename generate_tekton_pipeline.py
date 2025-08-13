@@ -65,6 +65,55 @@ def validate_yaml_syntax(content: str) -> bool:
         cprint(f"❌ Error validating YAML: {str(e)}", "red")
         return False
 
+def validate_tekton_multi_yaml_syntax(content: str) -> bool:
+    """Validate YAML that may contain multiple Tekton documents (Task, Pipeline, PipelineRun).
+    Ensures each document is a dict with apiVersion/kind and checks common script field issues.
+    """
+    try:
+        docs = list(yaml.safe_load_all(content))
+        if not docs:
+            cprint("❌ Error: No YAML documents found", "red")
+            return False
+
+        allowed_kinds = {"Task", "Pipeline", "PipelineRun"}
+        for idx, doc in enumerate(docs):
+            if not isinstance(doc, dict):
+                cprint(f"❌ Error: Document {idx+1} is not a YAML dictionary", "red")
+                return False
+            if 'apiVersion' not in doc:
+                cprint(f"❌ Error: Document {idx+1} missing apiVersion", "red")
+                return False
+            kind = doc.get('kind')
+            if kind not in allowed_kinds:
+                cprint(f"❌ Error: Document {idx+1} has unsupported kind: {kind}", "red")
+                return False
+
+            # Check script fields are strings, not arrays
+            if kind == 'Task':
+                steps = doc.get('spec', {}).get('steps', [])
+                for step in steps:
+                    if isinstance(step.get('script'), list):
+                        cprint("❌ Error: Script field must be a string, not an array", "red")
+                        cprint(f"   In step '{step.get('name')}' of Task '{doc.get('metadata', {}).get('name', '<no-name>')}'", "red")
+                        return False
+            elif kind == 'PipelineRun':
+                tasks = doc.get('spec', {}).get('pipelineSpec', {}).get('tasks', [])
+                for task in tasks:
+                    taskSpec = task.get('taskSpec', {})
+                    steps = taskSpec.get('steps', [])
+                    for step in steps:
+                        if isinstance(step.get('script'), list):
+                            cprint("❌ Error: Script field must be a string, not an array", "red")
+                            cprint(f"   In step '{step.get('name')}' of task '{task.get('name')}'", "red")
+                            return False
+        return True
+    except yaml.YAMLError as e:
+        cprint(f"❌ Error: Invalid YAML syntax - {str(e)}", "red")
+        return False
+    except Exception as e:
+        cprint(f"❌ Error validating YAML: {str(e)}", "red")
+        return False
+
 def analyze_and_fix_validation_error(error_message: str, content: str) -> Optional[str]:
     """Analyze validation error and attempt to fix the YAML using the model"""
     try:
@@ -196,6 +245,10 @@ def validate_with_binary(content: str, validator_binary: str, temp_file: str = "
         with open(temp_file, 'w') as f:
             f.write(content)
         
+        # Skip external validator for multi-document YAML (validator supports Pipeline/PipelineRun single docs)
+        if '---' in content:
+            cprint("ℹ️ Skipping external validator for multi-document YAML.", "yellow")
+            return True
         # Run the external validator
         result = subprocess.run(
             [validator_binary, temp_file],
@@ -286,7 +339,7 @@ def ingest_to_rag(content: str, filename: str) -> bool:
         client.tool_runtime.rag_tool.insert(
             documents=[document],
             vector_db_id=VECTOR_DB_ID,
-            chunk_size_in_tokens=256,
+            chunk_size_in_tokens=512,    #increased from 256 to 512 to digest larger documents
         )
         
         cprint(f"✅ Successfully ingested PipelineRun into RAG system", "green")
@@ -367,8 +420,8 @@ Response format: Output ONLY the raw YAML content with no markdown formatting.""
         # Clean up any markdown formatting
         yaml_content = clean_yaml_response(yaml_content)
         
-        # Basic YAML validation
-        if not validate_yaml_syntax(yaml_content):
+        # Basic YAML validation (allow multiple docs of Task/Pipeline/PipelineRun)
+        if not validate_tekton_multi_yaml_syntax(yaml_content):
             return None
             
         return yaml_content
@@ -390,11 +443,20 @@ def save_yaml(content: str, filename: str = "generated_pipelinerun.yaml") -> boo
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Generate and validate a Tekton PipelineRun')
+    parser.add_argument('source_yaml', help='Path to a YAML file to convert into a Tekton v1 PipelineRun')
     parser.add_argument('--validator', default='tekton-validate',
                       help='Path to the validator binary (default: tekton-validate)')
     parser.add_argument('--no-ingest', action='store_true',
                       help='Skip ingesting successful PipelineRuns back to RAG')
     args = parser.parse_args()
+    
+    # Read source YAML
+    source_path = Path(args.source_yaml)
+    if not source_path.is_file():
+        cprint(f"❌ Error: Source YAML not found: {source_path}", "red")
+        return
+    with open(source_path, 'r', encoding='utf-8') as f:
+        source_yaml_text = f.read()
     
     # Check if validator exists
     if not Path(args.validator).is_file():
@@ -402,24 +464,18 @@ def main():
         args.validator = None
 
     # Your specific requirements
-    requirements = """Create a Tekton PipelineRun (ONLY the PipelineRun resource, no separate Task or Pipeline objects) that:
-• Clones the repository https://github.com/savitaashture/pac-demo.
-• Runs the project's tests.
-• Builds an OCI image from a Dockerfile in the repo.
-• Pushes the image to a Docker registry whose URL is provided as a param.
+    requirements = f"""Using the conversion manual and docs context, convert the provided YAML into a set of valid Tekton v1 resources: one or more Task(s), a Pipeline that references those Tasks, and a PipelineRun that executes the Pipeline.
 
-Hard requirements:
-1. Use taskSpec blocks embedded directly inside the PipelineRun (do not reference external Tasks or Pipelines).
-2. Use a single workspace shared across steps.
-3. Accept two Params: 'git-url' and 'image-url'.
-4. Use catalog images (e.g. alpine/git, golang, buildah) that do not require private pulls.
-5. Generate invalid Tekton syntax by:
-   - Using incorrect field names (e.g. 'step' instead of 'steps')
-   - Placing fields at wrong nesting levels
-   - Using non-existent Tekton fields
-   - Mixing v1beta1 and v1 syntax
-   - Using incorrect parameter references
-6. Output must still be valid YAML starting with apiVersion."""
+Provided YAML (the source to convert):
+{source_yaml_text}
+
+Conversion goals:
+1. If the YAML already contains Tekton resources, normalize them to v1 and split appropriately into Task(s), Pipeline, and PipelineRun.
+2. If the YAML is not Tekton, infer the intent and produce equivalent Tekton Task(s), a Pipeline wiring them, and a PipelineRun.
+3. Use valid Tekton v1 syntax only. Ensure scripts are strings (not arrays) and field names/nesting are correct.
+4. Output MUST contain multiple YAML documents separated by '---' in this order: all Task(s), then the Pipeline, then the PipelineRun.
+5. Do not include any markdown/code fences or commentary. Output ONLY raw YAML starting with apiVersion.
+"""
 
     # Search for relevant documentation
     print("🔍 Searching for relevant Tekton documentation...")
@@ -475,3 +531,15 @@ Hard requirements:
 
 if __name__ == "__main__":
     main()
+
+
+
+
+
+
+
+
+
+
+
+#tekton-validate is currently being searched instead of validator_bin as writtem in README
