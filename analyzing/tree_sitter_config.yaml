@@ -1,0 +1,174 @@
+# Tree-sitter configuration for Jenkinsfile analysis
+# This file contains settings for the tree-sitter analyzer
+
+# Grammar configuration
+grammar:
+  # Path to the tree-sitter grammar library
+  # If not specified, will fall back to basic parsing
+  library_path: null  # Set to path like "/usr/local/lib/tree-sitter-groovy.so"
+  
+  # Grammar name for the language
+  language_name: "groovy"
+  
+  # Grammar repository URL (for building from source)
+  repository_url: "https://github.com/tree-sitter/tree-sitter-groovy"
+  
+  # Build instructions
+  build_instructions: |
+    # To build the grammar from source:
+    # git clone https://github.com/tree-sitter/tree-sitter-groovy
+    # cd tree-sitter-groovy
+    # npm install
+    # npm run build
+    # cp build/tree-sitter-groovy.so /usr/local/lib/
+
+# Parser settings
+parser:
+  # Maximum file size to parse (in bytes)
+  max_file_size: 1048576  # 1MB
+  
+  # Timeout for parsing (in seconds)
+  timeout: 30
+  
+  # Whether to use incremental parsing
+  incremental: true
+  
+  # Error recovery mode
+  error_recovery: true
+
+# Analysis settings
+analysis:
+  # Extract these elements from Jenkinsfiles
+  extract_elements:
+    - stages
+    - steps
+    - parameters
+    - environment
+    - tools
+    - post_actions
+    - options
+    - when_conditions
+    - parallel_blocks
+  
+  # Step types to recognize
+  step_types:
+    - sh
+    - bat
+    - script
+    - dir
+    - withCredentials
+    - echo
+    - archiveArtifacts
+    - junit
+    - publishHTML
+    - input
+    - timeout
+    - retry
+  
+  # Pipeline types to detect
+  pipeline_types:
+    - declarative
+    - scripted
+    - multibranch
+
+# Conversion settings for Tekton
+conversion:
+  # Default images for different step types
+  default_images:
+    sh: "alpine:latest"
+    bat: "mcr.microsoft.com/windows/servercore:ltsc2019"
+    script: "alpine:latest"
+    build: "golang:1.21-alpine"
+    test: "golang:1.21-alpine"
+    docker: "docker:latest"
+  
+  # Parameter type mapping
+  parameter_types:
+    string: "string"
+    booleanParameter: "string"
+    choice: "string"
+    text: "string"
+    password: "string"
+    file: "string"
+  
+  # Workspace configuration
+  workspaces:
+    # Default workspace for source code
+    source:
+      name: "source"
+      description: "Source code workspace"
+      optional: false
+    
+    # Default workspace for artifacts
+    artifacts:
+      name: "artifacts"
+      description: "Build artifacts workspace"
+      optional: true
+    
+    # Default workspace for cache
+    cache:
+      name: "cache"
+      description: "Build cache workspace"
+      optional: true
+
+# Output settings
+output:
+  # Output format for analysis results
+  format: "json"  # json, yaml, or text
+  
+  # Include source code in output
+  include_source: false
+  
+  # Include AST nodes in output
+  include_ast: false
+  
+  # Pretty print output
+  pretty_print: true
+  
+  # Output file extension
+  file_extension: ".analysis.json"
+
+# Logging settings
+logging:
+  # Log level
+  level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  
+  # Log file path
+  file: null  # Set to path for file logging
+  
+  # Log format
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  
+  # Include timestamps
+  include_timestamps: true
+
+# Performance settings
+performance:
+  # Enable caching of parsed results
+  enable_caching: true
+  
+  # Cache directory
+  cache_dir: ".cache"
+  
+  # Cache expiration (in seconds)
+  cache_expiration: 3600  # 1 hour
+  
+  # Maximum cache size (in MB)
+  max_cache_size: 100
+
+# Error handling
+error_handling:
+  # Continue on parsing errors
+  continue_on_error: true
+  
+  # Maximum number of errors to report
+  max_errors: 10
+  
+  # Include error context
+  include_error_context: true
+  
+  # Error recovery strategies
+  recovery_strategies:
+    - skip_invalid_node
+    - use_basic_parsing
+    - ignore_syntax_errors 

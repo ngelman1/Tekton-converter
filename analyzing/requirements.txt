@@ -1,0 +1,26 @@
+# Requirements for the analyzing module
+# Core dependencies for tree-sitter analysis
+
+# Tree-sitter Python bindings
+tree-sitter>=0.20.4
+
+# YAML processing
+PyYAML>=6.0
+
+# Type hints support
+typing-extensions>=4.0.0
+
+# JSON processing (built-in, but listed for clarity)
+# json - built-in module
+
+# Path handling (built-in, but listed for clarity)
+# pathlib - built-in module
+
+# Optional: For better performance
+# numpy>=1.21.0  # Uncomment if needed for large file processing
+
+# Optional: For advanced logging
+# structlog>=21.0.0  # Uncomment if structured logging is needed
+
+# Optional: For caching
+# diskcache>=5.0.0  # Uncomment if disk caching is needed 

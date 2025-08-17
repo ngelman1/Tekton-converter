@@ -1,5 +1,6 @@
 import os
-from typing import Dict, Optional
+import sys
+from typing import Dict, Optional, Any
 from termcolor import cprint
 from llama_stack_client import LlamaStackClient
 import yaml
@@ -9,6 +10,17 @@ import subprocess
 from pathlib import Path
 import argparse
 import time
+
+# Add the analyzing module to the path
+sys.path.append(os.path.join(os.path.dirname(__file__), 'analyzing'))
+
+try:
+    from analyzing.tree_sitter_analyzer import JenkinsfileAnalyzer, analyze_jenkinsfile
+    TREE_SITTER_AVAILABLE = True
+except ImportError as e:
+    cprint(f"⚠️ Warning: Tree-sitter analyzer not available: {e}", "yellow")
+    cprint("   Install with: pip install -r analyzing/requirements.txt", "yellow")
+    TREE_SITTER_AVAILABLE = False
 
 # Initialize LlamaStack client
 client = LlamaStackClient(base_url="http://localhost:8321")
@@ -374,14 +386,56 @@ def search_knowledge_base(query: str, vector_db_id: str, max_results: int = 3) -
         cprint(f"Error searching knowledge base: {e}", "red")
         return ""
 
-def generate_pipelinerun(requirements: str, context: str) -> Optional[str]:
-    """Generate a PipelineRun using Gemini"""
+def analyze_jenkinsfile_with_tree_sitter(file_path: str) -> Optional[Dict[str, Any]]:
+    """
+    Analyze a Jenkinsfile using tree-sitter and return the parsed structure.
+    
+    Args:
+        file_path: Path to the Jenkinsfile
+        
+    Returns:
+        Parsed structure or None if analysis fails
+    """
+    if not TREE_SITTER_AVAILABLE:
+        cprint("❌ Tree-sitter analyzer not available", "red")
+        return None
+    
     try:
+        cprint("🔍 Analyzing Jenkinsfile with tree-sitter...", "blue")
+        result = analyze_jenkinsfile(file_path)
+        
+        if result and result.get('parsed'):
+            cprint("✅ Jenkinsfile analysis completed", "green")
+            return result
+        else:
+            cprint("❌ Failed to analyze Jenkinsfile", "red")
+            return None
+            
+    except Exception as e:
+        cprint(f"❌ Error analyzing Jenkinsfile: {e}", "red")
+        return None
+
+def generate_pipelinerun(requirements: str, context: str, ast_data: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    """Generate a PipelineRun using Gemini with optional AST data"""
+    try:
+        # Enhanced prompt with AST data if available
+        if ast_data and ast_data.get('parsed'):
+            ast_context = f"""
+Tree-sitter Analysis Results:
+{json.dumps(ast_data['parsed'], indent=2)}
+
+Tekton Structure:
+{json.dumps(ast_data.get('tekton', {}), indent=2)}
+"""
+            enhanced_requirements = f"{requirements}\n\nAST Analysis Context:\n{ast_context}"
+        else:
+            enhanced_requirements = requirements
+        
         prompt = f"""You are a Tekton expert. Generate a valid PipelineRun YAML that exactly matches the requirements.
 
 Requirements:
 
-{requirements}
+{enhanced_requirements}
 
 Here is relevant documentation and examples for reference:
 {context}
@@ -394,6 +448,7 @@ Rules:
 5. Ensure the YAML starts with apiVersion
 6. Do not include any markdown formatting or code block syntax
 7. Output ONLY the raw YAML content, no explanations or other text
+8. If AST data is provided, use it to create more accurate conversions
 
 Response format: Output ONLY the raw YAML content with no markdown formatting."""
 
@@ -443,20 +498,44 @@ def save_yaml(content: str, filename: str = "generated_pipelinerun.yaml") -> boo
 def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Generate and validate a Tekton PipelineRun')
-    parser.add_argument('source_yaml', help='Path to a YAML file to convert into a Tekton v1 PipelineRun')
+    parser.add_argument('source_file', help='Path to a YAML file or Jenkinsfile to convert into a Tekton v1 PipelineRun')
     parser.add_argument('--validator', default='tekton-validate',
                       help='Path to the validator binary (default: tekton-validate)')
     parser.add_argument('--no-ingest', action='store_true',
                       help='Skip ingesting successful PipelineRuns back to RAG')
+    parser.add_argument('--use-ast', action='store_true',
+                      help='Use tree-sitter AST analysis for Jenkinsfiles')
     args = parser.parse_args()
     
-    # Read source YAML
-    source_path = Path(args.source_yaml)
+    # Read source file
+    source_path = Path(args.source_file)
     if not source_path.is_file():
-        cprint(f"❌ Error: Source YAML not found: {source_path}", "red")
+        cprint(f"❌ Error: Source file not found: {source_path}", "red")
         return
+    
+    # Determine file type and read content
+    file_extension = source_path.suffix.lower()
+    is_jenkinsfile = file_extension in ['.groovy', '.jenkinsfile'] or source_path.name.lower() in ['jenkinsfile', 'jenkinsfile.groovy']
+    
     with open(source_path, 'r', encoding='utf-8') as f:
-        source_yaml_text = f.read()
+        source_content = f.read()
+    
+    # Analyze with tree-sitter if it's a Jenkinsfile and AST analysis is requested
+    ast_data = None
+    if is_jenkinsfile and args.use_ast and TREE_SITTER_AVAILABLE:
+        ast_data = analyze_jenkinsfile_with_tree_sitter(str(source_path))
+        if ast_data:
+            cprint("✅ Tree-sitter analysis completed successfully", "green")
+        else:
+            cprint("⚠️ Tree-sitter analysis failed, continuing without AST data", "yellow")
+    
+    # For Jenkinsfiles, use the content directly; for YAML, use as before
+    if is_jenkinsfile:
+        source_yaml_text = source_content
+        file_type_note = " (Jenkinsfile)"
+    else:
+        source_yaml_text = source_content
+        file_type_note = " (YAML)"
     
     # Check if validator exists
     if not Path(args.validator).is_file():
@@ -464,7 +543,24 @@ def main():
         args.validator = None
 
     # Your specific requirements
-    requirements = f"""Using the conversion manual and docs context, convert the provided YAML into a set of valid Tekton v1 resources: one or more Task(s), a Pipeline that references those Tasks, and a PipelineRun that executes the Pipeline.
+    if is_jenkinsfile:
+        requirements = f"""Using the conversion manual and docs context, convert the provided Jenkinsfile into a set of valid Tekton v1 resources: one or more Task(s), a Pipeline that references those Tasks, and a PipelineRun that executes the Pipeline.
+
+Provided Jenkinsfile (the source to convert):
+{source_yaml_text}
+
+Conversion goals:
+1. Parse the Jenkinsfile and extract stages, steps, parameters, and environment variables.
+2. Convert Jenkins stages to Tekton tasks, maintaining the execution order.
+3. Convert Jenkins steps (sh, bat, script, etc.) to Tekton steps with appropriate container images.
+4. Map Jenkins parameters to Tekton parameters.
+5. Convert Jenkins environment variables to Tekton workspaces or environment variables.
+6. Use valid Tekton v1 syntax only. Ensure scripts are strings (not arrays) and field names/nesting are correct.
+7. Output MUST contain multiple YAML documents separated by '---' in this order: all Task(s), then the Pipeline, then the PipelineRun.
+8. Do not include any markdown/code fences or commentary. Output ONLY raw YAML starting with apiVersion.
+"""
+    else:
+        requirements = f"""Using the conversion manual and docs context, convert the provided YAML into a set of valid Tekton v1 resources: one or more Task(s), a Pipeline that references those Tasks, and a PipelineRun that executes the Pipeline.
 
 Provided YAML (the source to convert):
 {source_yaml_text}
@@ -492,8 +588,8 @@ Conversion goals:
         print("❌ No relevant documentation found. Please ensure the vector database is populated.")
         return
     
-    print("✨ Generating PipelineRun...")
-    pipeline_run = generate_pipelinerun(requirements, context)
+    print(f"✨ Generating PipelineRun from {source_path.name}{file_type_note}...")
+    pipeline_run = generate_pipelinerun(requirements, context, ast_data)
     
     if pipeline_run:
         print("\n📄 Generated PipelineRun:")
