@@ -2,7 +2,7 @@ import os
 import sys
 from typing import Dict, Optional, Any
 from termcolor import cprint
-from llama_stack_client import LlamaStackClient
+import google.generativeai as genai
 import yaml
 import json
 import re
@@ -22,8 +22,22 @@ except ImportError as e:
     cprint("   Install with: pip install -r analyzing/requirements.txt", "yellow")
     TREE_SITTER_AVAILABLE = False
 
-# Initialize LlamaStack client
-client = LlamaStackClient(base_url="http://localhost:8321")
+# Initialize Google AI client
+try:
+    # You'll need to set your API key as an environment variable
+    api_key = os.getenv('GOOGLE_API_KEY')
+    if api_key:
+        genai.configure(api_key=api_key)
+        GEMINI_AVAILABLE = True
+        cprint("✅ Google AI (Gemini) configured successfully", "green")
+    else:
+        cprint("⚠️ Warning: GOOGLE_API_KEY environment variable not set", "yellow")
+        cprint("   Set it with: export GOOGLE_API_KEY='your-api-key'", "yellow")
+        GEMINI_AVAILABLE = False
+except Exception as e:
+    cprint(f"⚠️ Warning: Google AI client not available: {e}", "yellow")
+    GEMINI_AVAILABLE = False
+
 VECTOR_DB_ID = "tekton_docs_vector_db"
 
 def clean_yaml_response(response: str) -> str:
@@ -334,75 +348,54 @@ def validate_with_binary(content: str, validator_binary: str, temp_file: str = "
             os.remove(temp_file)
 
 def ingest_to_rag(content: str, filename: str) -> bool:
-    """Ingest a validated PipelineRun into the RAG system"""
+    """Ingest a validated PipelineRun into the RAG system (simplified)"""
     try:
-        # Prepare the document
-        document = {
-            "document_id": f"generated_{int(time.time())}",
-            "content": content,
-            "metadata": {
-                "source": filename,
-                "type": "generated",
-                "uploaded_at": int(time.time())
-            }
-        }
-        
-        # Insert into vector database
-        client.tool_runtime.rag_tool.insert(
-            documents=[document],
-            vector_db_id=VECTOR_DB_ID,
-            chunk_size_in_tokens=512,    #increased from 256 to 512 to digest larger documents
-        )
-        
-        cprint(f"✅ Successfully ingested PipelineRun into RAG system", "green")
+        # For now, just log that we would ingest
+        cprint(f"ℹ️ Would ingest PipelineRun to RAG system (RAG disabled)", "blue")
+        cprint(f"   Content length: {len(content)} characters", "blue")
+        cprint(f"   Filename: {filename}", "blue")
         return True
         
     except Exception as e:
-        cprint(f"❌ Error ingesting to RAG: {e}", "red")
+        cprint(f"❌ Error in ingest function: {e}", "red")
         return False
 
 def search_knowledge_base(query: str, vector_db_id: str, max_results: int = 3) -> str:
-    """Search the vector database for relevant context"""
-    try:
-        # Query the RAG tool with the correct parameters
-        response = client.tool_runtime.rag_tool.query(
-            content=query,
-            vector_db_ids=[vector_db_id]
-        )
-        
-        # Extract content from response
-        if hasattr(response, 'content'):
-            # If response has content attribute with text items
-            texts = [item.text for item in response.content if hasattr(item, 'text')]
-            return "\n---\n".join(texts[:max_results])  # Limit results after getting them
-        elif isinstance(response, str):
-            # If response is directly a string
-            return response
-        else:
-            # Try to convert response to string
-            return str(response)
-            
-    except Exception as e:
-        cprint(f"Error searching knowledge base: {e}", "red")
-        return ""
+    """Search for relevant context (simplified without RAG)"""
+    cprint("ℹ️ Using basic Tekton conversion context", "blue")
+    return """Basic Tekton v1 PipelineRun structure:
 
-def analyze_jenkinsfile_with_tree_sitter(file_path: str) -> Optional[Dict[str, Any]]:
-    """
-    Analyze a Jenkinsfile using tree-sitter and return the parsed structure.
-    
-    Args:
-        file_path: Path to the Jenkinsfile
-        
-    Returns:
-        Parsed structure or None if analysis fails
-    """
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  name: example-pipelinerun
+spec:
+  pipelineSpec:
+    tasks:
+    - name: task-1
+      taskSpec:
+        steps:
+        - name: step-1
+          image: alpine:latest
+          script: |
+            echo "Hello World"
+  params:
+  - name: param1
+    value: "value1"
+  workspaces:
+  - name: source
+    emptyDir: {}
+"""
+
+def analyze_jenkinsfile_with_tree_sitter(file_path: str, grammar_path: Optional[str] = None) -> Optional[Dict[str, Any]]:
+
     if not TREE_SITTER_AVAILABLE:
         cprint("❌ Tree-sitter analyzer not available", "red")
         return None
     
     try:
         cprint("🔍 Analyzing Jenkinsfile with tree-sitter...", "blue")
-        result = analyze_jenkinsfile(file_path)
+        result = analyze_jenkinsfile(file_path, grammar_path)
         
         if result and result.get('parsed'):
             cprint("✅ Jenkinsfile analysis completed", "green")
@@ -452,21 +445,28 @@ Rules:
 
 Response format: Output ONLY the raw YAML content with no markdown formatting."""
 
-        # Use the chat endpoint instead of completions
-        response = client.chat.completions.create(
-            model="gemini-2.5-pro",
-            messages=[
-                {"role": "system", "content": "You are a Tekton expert. Generate only valid YAML."},
-                {"role": "user", "content": prompt}
-            ],
-            temperature=0.1
-        )
+        # Use Gemini to generate the PipelineRun
+        if not GEMINI_AVAILABLE:
+            cprint("❌ Google AI (Gemini) not available. Cannot generate PipelineRun.", "red")
+            cprint("   Set GOOGLE_API_KEY environment variable and install google-generativeai", "red")
+            return None
+            
+        try:
+            model = genai.GenerativeModel('gemini-1.5-pro')
+            response = model.generate_content(prompt)
+            
+            if response and response.text:
+                return response.text
+            else:
+                cprint("❌ Empty response from Gemini", "red")
+                return None
+                
+        except Exception as e:
+            cprint(f"❌ Error calling Gemini: {e}", "red")
+            return None
         
         # Get the generated YAML from the response
-        if hasattr(response, 'choices') and response.choices:
-            yaml_content = response.choices[0].message.content
-        else:
-            yaml_content = str(response)
+        yaml_content = response.text if response and response.text else ""
         
         if not yaml_content:
             cprint("Error: Empty response from model", "red")
@@ -499,12 +499,13 @@ def main():
     # Parse command line arguments
     parser = argparse.ArgumentParser(description='Generate and validate a Tekton PipelineRun')
     parser.add_argument('source_file', help='Path to a YAML file or Jenkinsfile to convert into a Tekton v1 PipelineRun')
-    parser.add_argument('--validator', default='tekton-validate',
-                      help='Path to the validator binary (default: tekton-validate)')
+    parser.add_argument('--validator', default='./validator_bin',
+                      help='Path to the validator binary (default: ./validator_bin)')
     parser.add_argument('--no-ingest', action='store_true',
                       help='Skip ingesting successful PipelineRuns back to RAG')
     parser.add_argument('--use-ast', action='store_true',
                       help='Use tree-sitter AST analysis for Jenkinsfiles')
+    parser.add_argument('--grammar-path', help='Path to the tree-sitter grammar library for Jenkinsfiles')
     args = parser.parse_args()
     
     # Read source file
@@ -515,15 +516,28 @@ def main():
     
     # Determine file type and read content
     file_extension = source_path.suffix.lower()
-    is_jenkinsfile = file_extension in ['.groovy', '.jenkinsfile'] or source_path.name.lower() in ['jenkinsfile', 'jenkinsfile.groovy']
+    file_name_lower = source_path.name.lower()
+    
+    # Check if it's a Jenkinsfile (case-insensitive)
+    is_jenkinsfile = (
+        file_extension in ['.groovy', '.jenkinsfile'] or
+        file_name_lower in ['jenkinsfile', 'jenkinsfile.groovy'] or
+        'jenkinsfile' in file_name_lower or
+        source_path.name == 'Jenkinsfile'  # Exact match for capital J
+    )
+    
+    # Debug output
+    cprint(f"🔍 File analysis:", "blue")
+    cprint(f"   Name: {source_path.name}", "blue")
+    cprint(f"   Extension: {file_extension}", "blue")
+    cprint(f"   Is Jenkinsfile: {is_jenkinsfile}", "blue")
     
     with open(source_path, 'r', encoding='utf-8') as f:
         source_content = f.read()
-    
-    # Analyze with tree-sitter if it's a Jenkinsfile and AST analysis is requested
+
     ast_data = None
     if is_jenkinsfile and args.use_ast and TREE_SITTER_AVAILABLE:
-        ast_data = analyze_jenkinsfile_with_tree_sitter(str(source_path))
+        ast_data = analyze_jenkinsfile_with_tree_sitter(str(source_path), args.grammar_path)
         if ast_data:
             cprint("✅ Tree-sitter analysis completed successfully", "green")
         else:
@@ -546,9 +560,6 @@ def main():
     if is_jenkinsfile:
         requirements = f"""Using the conversion manual and docs context, convert the provided Jenkinsfile into a set of valid Tekton v1 resources: one or more Task(s), a Pipeline that references those Tasks, and a PipelineRun that executes the Pipeline.
 
-Provided Jenkinsfile (the source to convert):
-{source_yaml_text}
-
 Conversion goals:
 1. Parse the Jenkinsfile and extract stages, steps, parameters, and environment variables.
 2. Convert Jenkins stages to Tekton tasks, maintaining the execution order.
@@ -559,28 +570,17 @@ Conversion goals:
 7. Output MUST contain multiple YAML documents separated by '---' in this order: all Task(s), then the Pipeline, then the PipelineRun.
 8. Do not include any markdown/code fences or commentary. Output ONLY raw YAML starting with apiVersion.
 """
-    else:
-        requirements = f"""Using the conversion manual and docs context, convert the provided YAML into a set of valid Tekton v1 resources: one or more Task(s), a Pipeline that references those Tasks, and a PipelineRun that executes the Pipeline.
 
-Provided YAML (the source to convert):
-{source_yaml_text}
-
-Conversion goals:
-1. If the YAML already contains Tekton resources, normalize them to v1 and split appropriately into Task(s), Pipeline, and PipelineRun.
-2. If the YAML is not Tekton, infer the intent and produce equivalent Tekton Task(s), a Pipeline wiring them, and a PipelineRun.
-3. Use valid Tekton v1 syntax only. Ensure scripts are strings (not arrays) and field names/nesting are correct.
-4. Output MUST contain multiple YAML documents separated by '---' in this order: all Task(s), then the Pipeline, then the PipelineRun.
-5. Do not include any markdown/code fences or commentary. Output ONLY raw YAML starting with apiVersion.
-"""
-
-    # Search for relevant documentation
+# Search for relevant documentation
     print("🔍 Searching for relevant Tekton documentation...")
     context = search_knowledge_base(
         query="""Find examples of:
-1. PipelineRuns with embedded taskSpec
-2. Git clone operations
-3. Building and pushing container images
-4. Using workspaces across tasks""",
+1. Tekton Task(s) that execute shell commands (sh, bash)
+2. How to pass environment variables and parameters to a Task
+3. Examples of Pipeline and Task definitions with multiple steps
+4. How to handle files and artifacts between tasks using workspaces
+5. Tekton equivalents for common CI/CD actions (testing, building, deploying)
+6. How to map Jenkinsfile stages and steps to Tekton Tasks and steps""",
         vector_db_id=VECTOR_DB_ID
     )
     
@@ -627,15 +627,3 @@ Conversion goals:
 
 if __name__ == "__main__":
     main()
-
-
-
-
-
-
-
-
-
-
-
-#tekton-validate is currently being searched instead of validator_bin as writtem in README
