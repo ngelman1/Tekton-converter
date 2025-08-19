@@ -8,33 +8,42 @@ for conversion to Tekton PipelineRuns.
 """
 
 import os
+import ctypes
 import json
 from typing import Dict, List, Optional, Any
 from pathlib import Path
-import yaml
+import sys
 from tree_sitter import Language, Parser, Node
 
+
 class JenkinsfileAnalyzer:
-    """Analyzes Jenkinsfiles using tree-sitter to extract pipeline structure."""
-    
     def __init__(self, grammar_path: Optional[str] = None):
-        """
-        Initialize the analyzer with tree-sitter grammar.
-        
-        Args:
-            grammar_path: Path to the tree-sitter grammar library
-        """
         self.parser = Parser()
         self.language = None
         self.tree = None
+
+        print(f"Loading grammar from {grammar_path}")
         
-        # Try to load the grammar
         if grammar_path and os.path.exists(grammar_path):
-            self.language = Language(grammar_path, 'groovy')
-            self.parser.set_language(self.language)
+            try:
+                # Load the compiled shared object file
+                lib = ctypes.CDLL(grammar_path)
+                
+                # Get a reference to the language function
+                language_function = lib.tree_sitter_groovy
+                
+                # The tree-sitter.Language constructor needs a C function pointer
+                self.language = Language(language_function)
+                
+                self.parser.set_language(self.language)
+                print("✅ Tree-sitter grammar loaded successfully")
+            except Exception as e:
+                print(f"Error loading grammar: {e}")
+                print("Make sure the grammar is compiled and the path is correct.")
         else:
-            # Fallback to basic parsing if grammar not available
             print("Warning: Tree-sitter grammar not found. Using basic parsing.")
+    
+
     
     def parse_jenkinsfile(self, content: str) -> Dict[str, Any]:
         """
@@ -405,7 +414,7 @@ class JenkinsfileAnalyzer:
         
         return None
 
-def analyze_jenkinsfile(file_path: str) -> Dict[str, Any]:
+def analyze_jenkinsfile(file_path: str, grammar_path: str) -> Dict[str, Any]:
     """
     Convenience function to analyze a Jenkinsfile.
     
@@ -415,7 +424,7 @@ def analyze_jenkinsfile(file_path: str) -> Dict[str, Any]:
     Returns:
         Parsed structure and Tekton conversion
     """
-    analyzer = JenkinsfileAnalyzer()
+    analyzer = JenkinsfileAnalyzer(grammar_path=grammar_path)
     
     with open(file_path, 'r', encoding='utf-8') as f:
         content = f.read()
@@ -428,11 +437,14 @@ def analyze_jenkinsfile(file_path: str) -> Dict[str, Any]:
         'tekton': tekton_structure
     }
 
+
 if __name__ == "__main__":
-    # Example usage
-    if len(sys.argv) > 1:
+    if len(sys.argv) > 2:
         jenkinsfile_path = sys.argv[1]
-        result = analyze_jenkinsfile(jenkinsfile_path)
+        grammar_path = sys.argv[2]
+        
+        # Pass both arguments to the function
+        result = analyze_jenkinsfile(jenkinsfile_path, grammar_path) 
         print(json.dumps(result, indent=2))
     else:
-        print("Usage: python tree_sitter_analyzer.py <jenkinsfile_path>") 
+        print("Usage: python tree_sitter_analyzer.py <jenkinsfile_path> <grammar_path>")
