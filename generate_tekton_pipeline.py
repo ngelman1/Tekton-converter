@@ -84,6 +84,40 @@ def query_RAG_and_print(client: LlamaStackClient, vector_db_id: str, query: str,
         return []
 
 
+def build_prompt_with_rag(jenkinsfile_content: str, relevant_docs: list) -> str:
+    context_texts = [doc.get("content", "") for doc in relevant_docs]
+    combined_context = "\n\n".join(context_texts)
+
+    prompt = f"""
+        You are a Tekton expert. Convert the following Jenkinsfile into valid Tekton v1 YAML.
+
+        Use the following reference material from the knowledge base (RAG results) to guide the conversion:
+
+        {combined_context}
+
+        Requirements:
+        1. Break down the pipeline into separate Tekton resources:
+        - One or more Task objects (one per Jenkins stage/step).
+        - A Pipeline object that references those Tasks.
+        - A PipelineRun object that executes the Pipeline.
+        2. Use only Tekton v1 syntax.
+        3. Scripts must be strings (not arrays).
+        4. Output MUST be multiple YAML documents separated by '---':
+        first the Task(s), then the Pipeline, then the PipelineRun.
+        5. Output ONLY raw YAML, no markdown formatting or explanations.
+
+        Jenkinsfile:
+        {jenkinsfile_content}
+        """
+    return prompt
+
+
+def generate_with_RAG(jenkinsfile_content: str, relevant_docs: list) -> str:
+    prompt = build_prompt_with_rag(jenkinsfile_content, relevant_docs)
+    response = model.generate_content(prompt)
+    return response.text
+
+
 def main():
     parser = argparse.ArgumentParser(description='Generate Tekton pipeline from Jenkinsfile with and without RAG queries')
     parser.add_argument('jenkinsfile_path', help='Path to the Jenkinsfile to convert')
@@ -92,16 +126,18 @@ def main():
     jenkinsfile_content = read_jenkinsfile(args.jenkinsfile_path)
 
     conversion_without_rag = generate_without_RAG(jenkinsfile_content)
-
-
-   
-    print("\nConversion without RAG:")
+    print("\n=== Conversion WITHOUT RAG ===")
     print(conversion_without_rag)
+
+    
     print("\n--- Query RAG Results ---")
     relevant_docs = query_RAG_and_print(client, VECTOR_DB_ID, "How to convert Jenkinsfile to Tekton Pipeline")
+
     
-
-
+    if relevant_docs:
+        conversion_with_rag = generate_with_RAG(jenkinsfile_content, relevant_docs)
+        print("\n=== Conversion WITH RAG ===")
+        print(conversion_with_rag)
 
 
 if __name__ == "__main__":
