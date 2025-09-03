@@ -1,0 +1,22 @@
+image_name: my-llamastack-faiss
+
+providers: {}
+
+server:
+  host: 0.0.0.0
+  port: 8321
+
+vector_dbs:
+  - vector_db_id: tekton_docs_vector_db
+    provider_id: local-faiss
+    provider_type: inline::faiss
+    db_path: /data
+    embedding_model: sentence-transformers/all-MiniLM-L6-v2
+    embedding_dimension: 384
+
+tools:
+  - toolgroup_id: builtin::rag
+#  - toolgroup_id: builtin::websearch
+
+scoring_fns: []
+
