@@ -68,17 +68,17 @@ def query_RAG_and_print(client: LlamaStackClient, query: str):
         )
 
         
-        if not results or not results.get("documents"):
+        if not results or not results.content:
             cprint("No relevant documents found.", "yellow")
             return []
         
-        cprint(f"Found {len(results['documents'])} relevant documents:", "green")
-        for i, doc in enumerate(results["documents"], 1):
+        cprint(f"Found {len(results.content)} relevant documents:", "green")
+        for i, doc in enumerate(results.content, 1):
             source = doc.get("metadata", {}).get("source", "<unknown>")
             score = doc.get("score", "<no-score>")
             print(f"  {i}. Source: {source} | Score: {score}")
-        
-        return results["documents"]
+
+        return results.content
     
     except Exception as e:
         cprint(f"❌ Error querying RAG: {e}", "red")
