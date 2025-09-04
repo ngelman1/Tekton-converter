@@ -135,9 +135,15 @@ def main():
 
     
     if relevant_docs:
+        rag_prompt = build_prompt_with_rag(jenkinsfile_content, relevant_docs)
+        print("\n=== RAG-Augmented Prompt ===")
+        print(rag_prompt)
+        
+        # Now pass the full prompt to the generation function
         conversion_with_rag = generate_with_RAG(jenkinsfile_content, relevant_docs)
         print("\n=== Conversion WITH RAG ===")
         print(conversion_with_rag)
+
 
 
 if __name__ == "__main__":
