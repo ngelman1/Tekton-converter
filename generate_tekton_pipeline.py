@@ -73,11 +73,11 @@ def query_RAG_and_print(client: LlamaStackClient, query: str):
             return []
         
         cprint(f"Found {len(results.content)} relevant documents:", "green")
-        for i, doc in enumerate(results.content, 1):
-            source = doc.get("metadata", {}).get("source", "<unknown>")
-            score = doc.get("score", "<no-score>")
-            print(f"  {i}. Source: {source} | Score: {score}")
-
+        # for i, doc in enumerate(results.content, 1):
+        #     source = doc.metadata.get("source", "<unknown>")
+        #     score = doc.metadata.get("score", "<no-score>")
+        #     print(f"  {i}. Source: {source} | Score: {score}")
+        
         return results.content
     
     except Exception as e:
@@ -85,7 +85,7 @@ def query_RAG_and_print(client: LlamaStackClient, query: str):
         return []
 
 def build_prompt_with_rag(jenkinsfile_content: str, relevant_docs: list) -> str:
-    context_texts = [doc.get("content", "") for doc in relevant_docs]
+    context_texts = [doc.text for doc in relevant_docs]
     combined_context = "\n\n".join(context_texts)
 
     prompt = f"""
