@@ -12,13 +12,13 @@ VECTOR_DB_ID = "tekton_docs_vector_db"
 client = LlamaStackClient(base_url="http://localhost:8321")
 
 try:
-    api_key = os.getenv('GOOGLE_API_KEY')
+    api_key = os.getenv('GEMINI_API_KEY')
     if api_key:
         genai.configure(api_key=api_key)
         model = genai.GenerativeModel("gemini-2.5-pro")
         api_key_available = True
     else: 
-        cprint("GOOGLE_API_KEY NOT SET", "red")
+        cprint("GEMINI_API_KEY NOT SET", "red") # This line is good
         api_key_available = False
 except Exception as e:
     cprint(f"Error configuring Google AI: {e}", "red")
@@ -62,10 +62,10 @@ def query_RAG_and_print(client: LlamaStackClient, vector_db_id: str, query: str,
         cprint(f"Querying RAG for: '{query}'", "blue")
         
         results = client.tool_runtime.rag_tool.query(
-            vector_db_id=vector_db_id,
-            query=query,
+            query=query,  
             top_k=top_results
         )
+
         
         if not results or not results.get("documents"):
             cprint("No relevant documents found.", "yellow")
@@ -131,7 +131,7 @@ def main():
 
     
     print("\n--- Query RAG Results ---")
-    relevant_docs = query_RAG_and_print(client, VECTOR_DB_ID, "How to convert Jenkinsfile to Tekton Pipeline")
+    relevant_docs = query_RAG_and_print(client, "How to convert Jenkinsfile to Tekton Pipeline")
 
     
     if relevant_docs:
