@@ -57,13 +57,14 @@ def generate_without_RAG(jenkinsfile_content: str) -> str:
     return response.text
 
 
-def query_RAG_and_print(client: LlamaStackClient, vector_db_id: str, query: str, top_results: int = 5):
+# Assuming VECTOR_DB_ID is defined as a global variable.
+def query_RAG_and_print(client: LlamaStackClient, query: str):
     try:
         cprint(f"Querying RAG for: '{query}'", "blue")
         
         results = client.tool_runtime.rag_tool.query(
-            query=query,  
-            top_k=top_results
+            content=[{"type": "text", "text": query}], 
+            vector_db_ids=["tekton_docs_vector_db"], # This is still required
         )
 
         
@@ -82,7 +83,6 @@ def query_RAG_and_print(client: LlamaStackClient, vector_db_id: str, query: str,
     except Exception as e:
         cprint(f"❌ Error querying RAG: {e}", "red")
         return []
-
 
 def build_prompt_with_rag(jenkinsfile_content: str, relevant_docs: list) -> str:
     context_texts = [doc.get("content", "") for doc in relevant_docs]
