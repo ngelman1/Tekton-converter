@@ -1,0 +1,114 @@
+=== Conversion WITH RAG ===
+```yaml
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: create-greeting
+spec:
+  workspaces:
+    - name: shared-data
+      description: The workspace to write the initial message to.
+  steps:
+    - name: create
+      image: bash:5.2
+      script: |
+        #!/bin/bash
+        set -e
+        finalMessage="Hello from Stage 1!"
+        echo "Stage 1 Message: ${finalMessage}"
+        echo -n "${finalMessage}" > $(workspaces.shared-data.path)/message
+---
+
+
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: append-to-greeting
+spec:
+  workspaces:
+    - name: shared-data
+      description: The workspace to read the message from and append to.
+  steps:
+    - name: append
+      image: bash:5.2
+      script: |
+        #!/bin/bash
+        set -e
+        # Read the message from the previous task
+        finalMessage=$(cat $(workspaces.shared-data.path)/message)
+        # Append to the message
+        finalMessage+=" Goodbye from Stage 2!"
+        echo "Stage 2 Message: ${finalMessage}"
+        # Write the updated message back to the file
+        echo -n "${finalMessage}" > $(workspaces.shared-data.path)/message
+---
+
+
+apiVersion: tekton.dev/v1
+kind: Task
+metadata:
+  name: echo-final-message
+spec:
+  workspaces:
+    - name: shared-data
+      description: The workspace to read the final message from.
+  steps:
+    - name: echo
+      image: bash:5.2
+      script: |
+        #!/bin/bash
+        set -e
+        finalMessage=$(cat $(workspaces.shared-data.path)/message)
+        echo "Final Message: ${finalMessage}"
+---
+
+
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: jenkins-greeting-pipeline
+spec:
+  workspaces:
+    - name: pipeline-workspace
+  tasks:
+    - name: create-message
+      taskRef:
+        name: create-greeting
+      workspaces:
+        - name: shared-data
+          workspace: pipeline-workspace
+    - name: append-message
+      taskRef:
+        name: append-to-greeting
+      runAfter:
+        - create-message
+      workspaces:
+        - name: shared-data
+          workspace: pipeline-workspace
+  finally:
+    - name: show-final-message
+      taskRef:
+        name: echo-final-message
+      workspaces:
+        - name: shared-data
+          workspace: pipeline-workspace
+---
+
+
+apiVersion: tekton.dev/v1
+kind: PipelineRun
+metadata:
+  generateName: jenkins-greeting-pipeline-run-
+spec:
+  pipelineRef:
+    name: jenkins-greeting-pipeline
+  workspaces:
+    - name: pipeline-workspace
+      volumeClaimTemplate:
+        spec:
+          accessModes:
+            - ReadWriteOnce
+          resources:
+            requests:
+              storage: 1Gi
+```

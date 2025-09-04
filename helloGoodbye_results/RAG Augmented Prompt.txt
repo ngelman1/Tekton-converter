@@ -1,0 +1,159 @@
+=== RAG-Augmented Prompt ===
+
+        You are a Tekton expert. Convert the following Jenkinsfile into valid Tekton v1 YAML.
+
+        Use the following reference material from the knowledge base (RAG results) to guide the conversion:
+
+        knowledge_search tool found 5 chunks:
+BEGIN of knowledge_search tool results.
+
+
+Result 1
+Content: =\"anchor-heading test-horse\">3.1.2.&nbsp;Migrating a sample pipeline from Jenkins to Tekton\u003C/a>\u003Crh-tooltip position=\"top\">\u003Crh-button class=\"copy-link-btn\" variant=\"link\" aria-label=\"Copy link to clipboard\">\u003Crh-icon class=\"link-icon\" set=\"ui\" icon=\"link\" size=\"sm\" aria-label=\"Copy link\">\u003C/rh-icon>\u003C/rh-button>\u003Cdiv slot=\"content\" class=\"section-link tooltip-content\">\u003Cspan class=\"copy-link-text\">Copy link\u003C/span>\u003Cspan class=\"copy-link-text-confirmation\" hidden=\"\">Link copied to clipboard!\u003Crh-icon set=\"ui\" class=\"check-icon\" icon=\"check-circle\" size=\"sm\">\u003C/rh-icon>\u003C/span>\u003C/div>\u003C/rh-tooltip>\u003C/h3>\u003C/div>\u003C/div>\u003C/div>\u003Cp>\n\t\t\t\t\tThis section provides equivalent examples of pipelines in Jenkins and Tekton and helps you to migrate your build, test, and deploy pipelines from Jenkins to Tekton.\n\t\t\t\t\u003C/p>\u003Csection class=\"section\" id=\"jenkins-pipeline\">\u003Cdiv class=\"titlepage\">\u003Cdiv>\u003Cdiv>\u003Ch4 class=\"title\">\u003Ca href=\"#jenkins-pipeline\" class=\"anchor-heading test-horse\">3.1.2.1.&nbsp;Jenkins pipeline\u003C/a>\u003Crh-tooltip position=\"top\">\u003Crh-button class=\"copy-link-btn\" variant=\"link\" aria-label=\"Copy link to clipboard\">\u003Crh-icon class=\"link-icon\" set=\"ui\" icon=\"link\" size=\"sm\" aria-label=\"Copy link\">\u003C/rh-icon>\u003C/rh-button>\u003Cdiv slot=\"content\" class=\"section-link tooltip-content\">\u003Cspan class=\"copy-link-text\">Copy link\u003C/span>\u003Cspan class=\"copy-link-text-confirmation\" hidden=\"\">Link copied to clipboard!\u003Crh-icon set=\"ui\" class=\"check-icon\" icon=\"check-circle\" size=\"sm\">\u003C/rh-icon>\u
+Metadata: {'chunk_id': 'fb8d3cff-6493-4807-f6ab-0973e290a6c7', 'document_id': '4d422e71-0471-4808-adcb-93ca4b606cdf_chunk_88', 'source': 'tekton_docs/Migrating from Jenkins to Tekton .html', 'uploaded_at': 1755070168, 'chunk_index': 88, 'total_chunks': 187}
+
+
+Result 2
+Content: 40MDVjMy4wMzQtMz0iLjAzNCIgMy4wMzQtNy45NyAwLTExLjAwM3oiPjwvcGF0aD48cGF0aCBkPSIzRCZxdW90O00xNy40NjUiIDExLjExNWExIDEgMCAwIDAtLjkzIDE9Ii43NyIgNi41NzEgNi41NzEgMCAwIDEgMS40OTggMS4wODIgNS43ODcgNS43ODcgMCAwIDEgMCA4LjE3NWwtNi4xNjUgNi4xNjVhNS49Ijc4NyIgNS43ODcgMCAwIDEtOC4xNzUgMCA1Ljc4NyA1Ljc4NyAwIDAgMSAwLTguMTc1bDMuNDA0LTMuNDA1YTEgMSAwIDEgMC0xLjQ9IjE0LTEuNDE0TDIuMjgiIDE4LjcxOGMtMy4wMzQgMy4wMzMtMy4wMzQgNy45NyAwIDExLjAwMyAxLjUxNiAxLjUxNyAzLjUwOSAyLjI9Ijc1IiA1LjUwMSAyLjI3NXMzLjk4NS0uNzU4IDUuNTAyLTIuMjc1bDYuMTY1LTYuMTY1YzMuMDMzLTMuMDMzIDMuMDMzLTcuOTcgMC09IjExLjAwM2E4LjUyNSIgOC41MjUgMCAwIDAtMS45ODItMS40Mzh6Ij48L3BhdGg+PC9zdmc+)
+:::
+
+::: {.3D\"section= slot="3D\"content\"" -link="" tooltip-content\"=""}
+[Copy link]{.3D\"copy-link-text\"}
+:::
+
+This section provides equivalent examples of pipelines in Jenkins and =
+Tekton and helps you to migrate your build, test, and deploy pipelines
+from= Jenkins to Tekton.
+
+::: {#3D\"
+Metadata: {'chunk_id': '625d7c54-b2c3-9d9b-6eac-6de2b405d1ad', 'document_id': '7accd46e-9ed5-4c20-a9f9-3c231249a2b2_chunk_20', 'source': 'tekton_docs/migrating-jenkins-to-tekton.md', 'uploaded_at': 1755072310, 'chunk_index': 20, 'total_chunks': 87}
+
+
+Result 3
+Content: jAwM2E4LjUyNSIgOC41MjUgMCAwIDAtMS45ODItMS40Mzh6Ij48L3BhdGg+PC9zdmc+)
+:::
+
+::: {.3D\"section= slot="3D\"content\"" -link="" tooltip-content\"=""}
+[Copy link]{.3D\"copy-link-text\"}
+:::
+
+This section provides equivalent examples of pipelines in Jenkins and =
+Tekton and helps you to migrate your build, test, and deploy pipelines
+from= Jenkins to Tekton.
+
+::: {#3D\"jenkins-pipeline\" .section .3D\"section\"}
+::: {.3D\"ti= tlepage\"=""}
+<div>
+
+<div>
+
+#### [3.1= .2.1. Jenkins pipeline](3D%22https://docs.redhat.com/e=){.3D\"anchor-heading n="" documentation="" openshift_container_platform="" 4.10="" html="" cicd="" migrating-from-="jenkins-to-tekton#jenkins-pipeline\"" test-horse\"=""} {#jenkins-pipeline .3D\"title\"}
+
+::: {#3D\"container\" .3D\" style="3D\"\"" center="" \"=""}
+::: {#3D\"invoker\"}
+:::
+
+::: {#3D\"tooltip\" .3D\" role="3D\"status\"" dark="" \"=""}
+:::
+:::
+
+[ ]{aria-hidden="3D\"true\""}
+
+::: {#3D\"container\" .3D\" aria-hidden="3D\"false\"" ui="" \"=""}
+[]{part="3D\"fallback\""}
+:::
+
+[]{aria-hidden="3D\"false\""}
+
+::: {#3D\"container\" .3D\" aria-hidden="3D\"true\"" ui="" \"=""}
+![](data:image/svg+xml;base64,PHN2ZyB4bWxucz0iM0QmcXVvdDtodD0iIHRwOiB3d3cudzMub3JnIDIwMDAgc3ZnIiB2aWV3Ym94PSIzRCZxdW90OzAiIDAgMzIgMzIiPjxwYXRoIGQ9IjNEJnF1b3Q7TTI5LjcyMSI
+Metadata: {'chunk_id': '8b8d2861-fe91-a5ae-74c5-f5fd23ba5482', 'document_id': '7accd46e-9ed5-4c20-a9f9-3c231249a2b2_chunk_20', 'source': 'tekton_docs/migrating-jenkins-to-tekton.md', 'uploaded_at': 1755072310, 'chunk_index': 20, 'total_chunks': 87}
+
+
+Result 4
+Content: NDk4IDEuMDgyIDUuNzg3IDUuNzg3IDAgMCAxIDAgOC4xNzVsLTYuMTY1IDYuMTY1YTUuPSI3ODciIDUuNzg3IDAgMCAxLTguMTc1IDAgNS43ODcgNS43ODcgMCAwIDEgMC04LjE3NWwzLjQwNC0zLjQwNWExIDEgMCAxIDAtMS40PSIxNC0xLjQxNEwyLjI4IiAxOC43MThjLTMuMDM0IDMuMDMzLTMuMDM0IDcuOTcgMCAxMS4wMDMgMS41MTYgMS41MTcgMy41MDkgMi4yPSI3NSIgNS41MDEgMi4yNzVzMy45ODUtLjc1OCA1LjUwMi0yLjI3NWw2LjE2NS02LjE2NWMzLjAzMy0zLjAzMyAzLjAzMy03Ljk3IDAtPSIxMS4wMDNhOC41MjUiIDguNTI1IDAgMCAwLTEuOTgyLTEuNDM4eiI+PC9wYXRoPjwvc3ZnPg==)
+:::
+
+::: {.3D\"section= slot="3D\"content\"" -link="" tooltip-content\"=""}
+[Copy link]{.3D\"copy-link-text\"}
+:::
+
+</div>
+:::
+
+Jenkins and Tekton are extensively used to automate the process of buil=
+ding, testing, and deploying applications and projects. However, Tekton
+is = a cloud-native CI/CD solution that works seamlessly with Kubernetes
+and Ope= nShift Container Platform. This document helps you migrate your
+Jenkins CI/= CD workflows to Tekton.
+
+::: {#3D\"jt-comparison-of-jenkins-and-tekton= .section .3D\"section\" -concepts_migrating-from-jenkins-to-tekton\"=""}
+::: 3D"titlepage"
+<div>
+
+\<= div\>
+
+### [3.1.1. Comparison of Jenkin= s and Tekton concepts](3D%22https://docs.redhat.com
+Metadata: {'chunk_id': 'e44de683-68d4-ba9f-d279-c0c8d705cb9e', 'document_id': '7accd46e-9ed5-4c20-a9f9-3c231249a2b2_chunk_18', 'source': 'tekton_docs/migrating-jenkins-to-tekton.md', 'uploaded_at': 1755072310, 'chunk_index': 18, 'total_chunks': 87}
+
+
+Result 5
+Content: =\"listitem\">\n\t\t\t\t\t\t\tCompiling, building, and deploying images using maven\n\t\t\t\t\t\t\u003C/li>\u003Cli class=\"listitem\">\n\t\t\t\t\t\t\tExtending the core capabilities by using plugins\n\t\t\t\t\t\t\u003C/li>\u003Cli class=\"listitem\">\n\t\t\t\t\t\t\tReusing shareable libraries and custom scripts\n\t\t\t\t\t\t\u003C/li>\u003C/ul>\u003C/div>\u003Csection class=\"section\" id=\"running-a-maven-pipeline-in-jenkins-and-tekton\">\u003Cdiv class=\"titlepage\">\u003Cdiv>\u003Cdiv>\u003Ch4 class=\"title\">\u003Ca href=\"#running-a-maven-pipeline-in-jenkins-and-tekton\" class=\"anchor-heading test-horse\">3.1.6.1.&nbsp;Running a maven pipeline in Jenkins and Tekton\u003C/a>\u003Crh-tooltip position=\"top\">\u003Crh-button class=\"copy-link-btn\" variant=\"link\" aria-label=\"Copy link to clipboard\">\u003Crh-icon class=\"link-icon\" set=\"ui\" icon=\"link\" size=\"sm\" aria-label=\"Copy link\">\u003C/rh-icon>\u003C/rh-button>\u003Cdiv slot=\"content\" class=\"section-link tooltip-content\">\u003Cspan class=\"copy-link-text\">Copy link\u003C/span>\u003Cspan class=\"copy-link-text-confirmation\" hidden=\"\">Link copied to clipboard!\u003Crh-icon set=\"ui\" class=\"check-icon\" icon=\"check-circle\" size=\"sm\">\u003C/rh-icon>\u003C/span>\u003C/div>\u003C/rh-tooltip>\u003C/h4>\u003C/div>\u003C/div>\u003C/div>\u003Cp>\n\t\t\t\t\t\tYou can use maven in both Jenkins and Tekton workflows for compiling, building, and deploying images. To map your existing Jenkins workflow to Tekton, consider the following examples:\n\t\t\t\t\t\u003C/p>\u003Cdiv class=\"formalpara\">\u003Cp class=\"title\">\u003Cstrong>Example: Compile and build an image and deploy it to OpenShift using m
+Metadata: {'chunk_id': 'de92c612-2e9f-3709-13c1-248f35be40f4', 'document_id': '4d422e71-0471-4808-adcb-93ca4b606cdf_chunk_94', 'source': 'tekton_docs/Migrating from Jenkins to Tekton .html', 'uploaded_at': 1755070168, 'chunk_index': 94, 'total_chunks': 187}
+
+
+END of knowledge_search tool results.
+
+
+The above results were retrieved to help answer the user's query: "How to convert Jenkinsfile to Tekton Pipeline". Use them as supporting information only in answering this query.
+
+
+        Requirements:
+        1. Break down the pipeline into separate Tekton resources:
+        - One or more Task objects (one per Jenkins stage/step).
+        - A Pipeline object that references those Tasks.
+        - A PipelineRun object that executes the Pipeline.
+        2. Use only Tekton v1 syntax.
+        3. Scripts must be strings (not arrays).
+        4. Output MUST be multiple YAML documents separated by '---':
+        first the Task(s), then the Pipeline, then the PipelineRun.
+        5. Output ONLY raw YAML, no markdown formatting or explanations.
+
+        Jenkinsfile:
+        // Shared variable outside pipeline block
+def finalMessage = ''
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Create Greeting') {
+            steps {
+                script {
+                    finalMessage = "Hello from Stage 1!"
+                    echo "Stage 1 Message: ${finalMessage}"
+                }
+            }
+        }
+
+        stage('Append to Greeting') {
+            steps {
+                script {
+                    finalMessage += " Goodbye from Stage 2!"
+                    echo "Stage 2 Message: ${finalMessage}"
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            script {
+                echo "Final Message: ${finalMessage}"
+            }
+        }
+    }
+}
+
+        
+
