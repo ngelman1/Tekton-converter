@@ -5,11 +5,18 @@ from pathlib import Path
 import google.generativeai as genai
 from termcolor import cprint
 from llama_stack_client import LlamaStackClient
+from llama_stack_client.types import QueryConfig, QueryGeneratorConfig
+
+
 
 
 # --- Config ---
 VECTOR_DB_ID = "tekton_docs_vector_db"
 client = LlamaStackClient(base_url="http://localhost:8321")
+
+
+
+
 
 try:
     api_key = os.getenv('GEMINI_API_KEY')
@@ -18,11 +25,12 @@ try:
         model = genai.GenerativeModel("gemini-2.5-pro")
         api_key_available = True
     else: 
-        cprint("GEMINI_API_KEY NOT SET", "red") # This line is good
+        cprint("GEMINI_API_KEY NOT SET", "red")
         api_key_available = False
 except Exception as e:
     cprint(f"Error configuring Google AI: {e}", "red")
     api_key_available = False
+
 
 
 def read_jenkinsfile(jenkinsfile_path: str) -> str:
@@ -33,6 +41,7 @@ def read_jenkinsfile(jenkinsfile_path: str) -> str:
 
     with open(jenkinsfile_path, 'r', encoding='utf-8') as file:
         return file.read()
+
 
 
 def generate_without_RAG(jenkinsfile_content: str) -> str:
@@ -57,32 +66,53 @@ def generate_without_RAG(jenkinsfile_content: str) -> str:
     return response.text
 
 
-# Assuming VECTOR_DB_ID is defined as a global variable.
 def query_RAG_and_print(client: LlamaStackClient, query: str):
     try:
         cprint(f"Querying RAG for: '{query}'", "blue")
+
+        # query_config_dict = {
+        #     "chunk_template": "Result {index}\nContent: {chunk.content}\nMetadata: {metadata}\n",
+        #     "max_chunks": 10,
+        #     "max_tokens_in_context": 1000,
+        #     "query_generator_config": {
+        #         "type": "default",
+        #         "separator": "\n---\n"
+        #     },
+        #     "mode": "vector"
+        # }
         
         results = client.tool_runtime.rag_tool.query(
             content=[{"type": "text", "text": query}], 
-            vector_db_ids=["tekton_docs_vector_db"], # This is still required
+            vector_db_ids=["tekton_docs_vector_db"],
+            # query_config=query_config_dict,
         )
 
-        
         if not results or not results.content:
             cprint("No relevant documents found.", "yellow")
             return []
-        
+
         cprint(f"Found {len(results.content)} relevant documents:", "green")
-        # for i, doc in enumerate(results.content, 1):
-        #     source = doc.metadata.get("source", "<unknown>")
-        #     score = doc.metadata.get("score", "<no-score>")
-        #     print(f"  {i}. Source: {source} | Score: {score}")
-        
+
+        for i, doc in enumerate(results.content, 1):
+            doc_dict = doc.to_dict()
+
+            metadata = doc_dict.get("metadata", {})
+            source = metadata.get("source", "<unknown>")
+            score = metadata.get("score", "<no-score>")  
+
+            text = doc_dict.get("text") or ""
+            snippet = (text[:100] + "...") if len(text) > 100 else text
+
+            print(f"  {i}. Source: {source} | Score: {score}")
+            if snippet:
+                print(f"     Text snippet: {snippet}")
+
         return results.content
-    
+
     except Exception as e:
         cprint(f"❌ Error querying RAG: {e}", "red")
         return []
+
 
 def build_prompt_with_rag(jenkinsfile_content: str, relevant_docs: list) -> str:
     context_texts = [doc.text for doc in relevant_docs]
@@ -105,6 +135,7 @@ def build_prompt_with_rag(jenkinsfile_content: str, relevant_docs: list) -> str:
         4. Output MUST be multiple YAML documents separated by '---':
         first the Task(s), then the Pipeline, then the PipelineRun.
         5. Output ONLY raw YAML, no markdown formatting or explanations.
+        6. **Important:** If a simple value or string is passed between steps, prefer using **results** instead of workspaces. Use workspaces only for files or larger data.
 
         Jenkinsfile:
         {jenkinsfile_content}
